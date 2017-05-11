@@ -29,137 +29,6 @@
 
 (c) 2017 by Standardabweichung, http://www.standardabweichung.de
 */
-(function() {
-  // Uploads a 2x2 floating-point texture where one pixel is 2 and the other
-  // three pixels are 0. Linear filtering is only supported if a sample taken
-  // from the center of that texture is (2 + 0 + 0 + 0) / 4 = 0.5.
-  function supportsOESTextureFloatLinear(gl) {
-    // Need floating point textures in the first place
-    if (!gl.getExtension('OES_texture_float')) {
-      return false;
-    }
-
-    // Create a render target
-    var framebuffer = gl.createFramebuffer();
-    var byteTexture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, byteTexture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, byteTexture, 0);
-
-    // Create a simple floating-point texture with value of 0.5 in the center
-    var rgba = [
-      2, 0, 0, 0,
-      0, 0, 0, 0,
-      0, 0, 0, 0,
-      0, 0, 0, 0
-    ];
-    var floatTexture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, floatTexture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 2, 2, 0, gl.RGBA, gl.FLOAT, new Float32Array(rgba));
-
-    // Create the test shader
-    var program = gl.createProgram();
-    var vertexShader = gl.createShader(gl.VERTEX_SHADER);
-    var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-    gl.shaderSource(vertexShader, '\
-      attribute vec2 vertex;\
-      void main() {\
-        gl_Position = vec4(vertex, 0.0, 1.0);\
-      }\
-    ');
-    gl.shaderSource(fragmentShader, '\
-      uniform sampler2D texture;\
-      void main() {\
-        gl_FragColor = texture2D(texture, vec2(0.5));\
-      }\
-    ');
-    gl.compileShader(vertexShader);
-    gl.compileShader(fragmentShader);
-    gl.attachShader(program, vertexShader);
-    gl.attachShader(program, fragmentShader);
-    gl.linkProgram(program);
-
-    // Create a buffer containing a single point
-    var buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0]), gl.STREAM_DRAW);
-    gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-
-    // Render the point and read back the rendered pixel
-    var pixel = new Uint8Array(4);
-    gl.useProgram(program);
-    gl.viewport(0, 0, 1, 1);
-    gl.bindTexture(gl.TEXTURE_2D, floatTexture);
-    gl.drawArrays(gl.POINTS, 0, 1);
-    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-
-    // The center sample will only have a value of 0.5 if linear filtering works
-    return pixel[0] === 127 || pixel[0] === 128;
-  }
-
-  // The constructor for the returned extension object
-  function OESTextureFloatLinear() {
-  }
-
-  // Cache the extension so it's specific to each context like extensions should be
-  function getOESTextureFloatLinear(gl) {
-    if (gl.$OES_texture_float_linear$ === void 0) {
-      Object.defineProperty(gl, '$OES_texture_float_linear$', {
-        enumerable: false,
-        configurable: false,
-        writable: false,
-        value: new OESTextureFloatLinear()
-      });
-    }
-    return gl.$OES_texture_float_linear$;
-  }
-
-  // This replaces the real getExtension()
-  function getExtension(name) {
-    return name === 'OES_texture_float_linear'
-      ? getOESTextureFloatLinear(this)
-      : oldGetExtension.call(this, name);
-  }
-
-  // This replaces the real getSupportedExtensions()
-  function getSupportedExtensions() {
-    var extensions = oldGetSupportedExtensions.call(this);
-    if (extensions.indexOf('OES_texture_float_linear') === -1) {
-      extensions.push('OES_texture_float_linear');
-    }
-    return extensions;
-  }
-
-  // Get a WebGL context
-  try {
-    var gl = document.createElement('canvas').getContext('experimental-webgl');
-  } catch (e) {
-  }
-
-  // Don't install the polyfill if the browser already supports it or doesn't have WebGL
-  if (!gl || gl.getSupportedExtensions().indexOf('OES_texture_float_linear') !== -1) {
-    return;
-  }
-
-  // Install the polyfill if linear filtering works with floating-point textures
-  if (supportsOESTextureFloatLinear(gl)) {
-    var oldGetExtension = WebGLRenderingContext.prototype.getExtension;
-    var oldGetSupportedExtensions = WebGLRenderingContext.prototype.getSupportedExtensions;
-    WebGLRenderingContext.prototype.getExtension = getExtension;
-    WebGLRenderingContext.prototype.getSupportedExtensions = getSupportedExtensions;
-  }
-}());
-
 var exports={},Standardabweichung=function(a,b){this.ABCDEFGHIV=a;this.ABCDEFGHIW=b;this.ABCDEFGHIJD=this.ABCDEFGHIJD.bind(this);this.ABCJ();this.ABCDEFGHIV.addEventListener("load",this.ABCDEFGHIJH)};
 Standardabweichung.prototype={ABCDEFGHIG:null,ABX:null,ABCDEFGHIH:{},ABCDEFGHII:!0,ABCDEFGHIJ:null,ABCDEFGHIK:null,ABCDEFGHIL:[],ABCDEFGHIM:0,ABCDEFGHIN:0,ABCp:null,ABCDEFGHIO:{ABCDEFGHIA:function(){},ABCDEFGHt:function(){return 0}},ABCDEFGHIP:0,ABCDEFGHIQ:null,ABCDEFGHIR:null,ABCDEFGHIS:null,ABCDEFGHIT:null,ABCDEFGHIU:null,ABCDEFGHIV:null,ABCDEFGHIW:null,ABCDEFGHIX:null,set ABCDEFGHIY(a){switch(a){case !0:this.ABCDEFGHIW.documentElement.requestFullscreen?this.ABCDEFGHIW.documentElement.requestFullscreen():this.ABCDEFGHIW.documentElement.requestFullScreen?
 this.ABCDEFGHIW.documentElement.requestFullScreen():this.ABCDEFGHIW.documentElement.webkitRequestFullscreen?this.ABCDEFGHIW.documentElement.webkitRequestFullscreen():this.ABCDEFGHIW.documentElement.webkitRequestFullScreen?this.ABCDEFGHIW.documentElement.webkitRequestFullScreen():this.ABCDEFGHIW.documentElement.mozRequestFullScreen?this.ABCDEFGHIW.documentElement.mozRequestFullScreen():this.ABCDEFGHIW.documentElement.msRequestFullscreen&&this.ABCDEFGHIW.documentElement.msRequestFullscreen();break;case !1:this.ABCDEFGHIW.exitFullscreen?this.ABCDEFGHIW.exitFullscreen():this.ABCDEFGHIW.webkitExitFullscreen?
@@ -411,24 +280,23 @@ Af.prototype={ABT:0,ABU:1,ABV:2,ABW:null,ABX:null,ABY:{},ABZ:-1,ABa:null,ABb:nul
 this.ABr(this.ABY.creditType.letters))},get ABk(){return this.ABi},ABl:"",set ABm(a){this.ABl!=a&&(this.ABl=a,this.ABl?this.ABs(this.ABY.credit.letters,this.ABl):this.ABr(this.ABY.credit.letters))},get ABm(){return this.ABl},ABn:"",set ABo(a){this.ABn!=a&&(this.ABn=a,this.ABn?this.ABs(this.ABY.infoA.letters,this.ABn):this.ABr(this.ABY.infoA.letters))},
 get ABo(){return this.ABn},ABp:"",set ABq(a){this.ABp!=a&&(this.ABp=a,this.ABp?this.ABs(this.ABY.infoB.letters,this.ABp):this.ABr(this.ABY.infoB.letters))},get ABq(){return this.ABp}};
 Af.prototype.ABG=function(){this.ABt();this.ABu();this.ABv();this.ABw();this.ABx();this.ABy();this.ABY.contact=this.ABW.ABCDEFGHIW.createElement("a");this.ABY.contact.setAttribute("id","contact");this.ABY.contact.setAttribute("href","http://www.standardabweichung.de");this.ABY.contact.setAttribute("target","_blank");this.ABY.contact.appendChild(this.ABY.creditType);this.ABY.contact.appendChild(this.ABY.credit);
-this.ABY.info=this.ABW.ABCDEFGHIW.createElement("div");this.ABY.info.setAttribute("id","info");this.ABY.info.appendChild(this.ABY.infoA);this.ABY.info.appendChild(this.ABY.infoB);this.ABY.logos.setAttribute("id","logos");this.ABY.logos.setAttribute("href","http://ddd.it/en");this.ABY.logos.setAttribute("target","_blank");this.ABY.uinterface=this.ABW.ABCDEFGHIW.createElement("div");this.ABY.uinterface.setAttribute("id","interface");this.ABY.uinterface.appendChild(this.ABY.title);
-this.ABY.uinterface.appendChild(this.ABY.info);var a=this.ABW.ABCDEFGHIW.getElementById("animation");this.ABW.ABCDEFGHIW.body.insertBefore(this.ABY.uinterface,a);this.ABW.ABCDEFGHIW.body.insertBefore(this.ABY.contact,a);this.ABW.ABCDEFGHIW.body.insertBefore(this.ABY.logos,a);this.ABCG(this.ABT)};Af.prototype.ABr=function(a){for(var b=0,c=a.length;b<c;b++)a[b].setAttribute("class","letter")};
+this.ABY.info=this.ABW.ABCDEFGHIW.createElement("div");this.ABY.info.setAttribute("id","info");this.ABY.info.appendChild(this.ABY.infoA);this.ABY.info.appendChild(this.ABY.infoB);this.ABY.logos.setAttribute("id","logos");this.ABY.uinterface=this.ABW.ABCDEFGHIW.createElement("div");this.ABY.uinterface.setAttribute("id","interface");this.ABY.uinterface.appendChild(this.ABY.title);this.ABY.uinterface.appendChild(this.ABY.info);var a=this.ABW.ABCDEFGHIW.getElementById("animation");
+this.ABW.ABCDEFGHIW.body.insertBefore(this.ABY.uinterface,a);this.ABW.ABCDEFGHIW.body.insertBefore(this.ABY.contact,a);this.ABW.ABCDEFGHIW.body.insertBefore(this.ABY.logos,a);this.ABCG(this.ABT)};Af.prototype.ABr=function(a){for(var b=0,c=a.length;b<c;b++)a[b].setAttribute("class","letter")};
 Af.prototype.ABs=function(a,b){b=b.split("");for(var c,d=0,e=a.length;d<e;d++){if(c="",d<b.length){switch(b[d]){case "0":case "1":case "2":case "3":case "4":case "5":case "6":case "7":case "8":case "9":b[d]="_"+b[d];break;case "+":b[d]="PLUS";break;case ".":b[d]="POINT";break;case ":":b[d]="DOUBLEPOINT"}c=b[d].toUpperCase()}a[d].setAttribute("class","letter "+c)}};
 Af.prototype.ABt=function(){this.ABY.title=this.ABW.ABCDEFGHIW.createElement("div");this.ABY.title.setAttribute("id","title");this.ABY.title.classList.add("letterBox");this.ABY.title.letters=this.ABz(7);for(var a=0,b=this.ABY.title.letters.length;a<b;a++)this.ABY.title.appendChild(this.ABY.title.letters[a])};
 Af.prototype.ABu=function(){this.ABY.creditType=this.ABW.ABCDEFGHIW.createElement("div");this.ABY.creditType.setAttribute("id","creditType");this.ABY.creditType.classList.add("letterBox");this.ABY.creditType.letters=this.ABz(20);for(var a=0,b=this.ABY.creditType.letters.length;a<b;a++)this.ABY.creditType.appendChild(this.ABY.creditType.letters[a])};
 Af.prototype.ABv=function(){this.ABY.credit=this.ABW.ABCDEFGHIW.createElement("div");this.ABY.credit.setAttribute("id","credit");this.ABY.credit.classList.add("letterBox");this.ABY.credit.letters=this.ABz(20);for(var a=0,b=this.ABY.credit.letters.length;a<b;a++)this.ABY.credit.appendChild(this.ABY.credit.letters[a])};
 Af.prototype.ABw=function(){this.ABY.infoA=this.ABW.ABCDEFGHIW.createElement("div");this.ABY.infoA.setAttribute("id","infoA");this.ABY.infoA.classList.add("letterBox");this.ABY.infoA.letters=this.ABz(33);for(var a=0,b=this.ABY.infoA.letters.length;a<b;a++)this.ABY.infoA.appendChild(this.ABY.infoA.letters[a])};
 Af.prototype.ABx=function(){this.ABY.infoB=this.ABW.ABCDEFGHIW.createElement("div");this.ABY.infoB.setAttribute("id","infoB");this.ABY.infoB.classList.add("letterBox");this.ABY.infoB.letters=this.ABz(33);for(var a=0,b=this.ABY.infoB.letters.length;a<b;a++)this.ABY.infoB.appendChild(this.ABY.infoB.letters[a])};
-Af.prototype.ABy=function(){this.ABY.logos=this.ABW.ABCDEFGHIW.createElement("div");this.ABY.logos.setAttribute("id","title");this.ABY.logos.classList.add("logoBox");this.ABY.logos.logos=[this.ABCB(),this.ABCB()];this.ABY.logos.logos[0].setAttribute("href","http://ddd.it/en");this.ABY.logos.logos[0].setAttribute("target","_blank");this.ABY.logos.logos[1].setAttribute("href","http://www.standardabweichung.de");this.ABY.logos.logos[1].setAttribute("target",
+Af.prototype.ABy=function(){this.ABY.logos=this.ABW.ABCDEFGHIW.createElement("div");this.ABY.logos.setAttribute("id","title");this.ABY.logos.classList.add("logoBox");this.ABY.logos.logos=[this.ABCB(),this.ABCB()];this.ABY.logos.logos[0].setAttribute("href","http://ddd.it/en");this.ABY.logos.logos[0].setAttribute("target","_blank");this.ABY.logos.logos[1].setAttribute("href","http://devx.ddd.it/en");this.ABY.logos.logos[1].setAttribute("target",
 "_blank");for(var a=0,b=this.ABY.logos.logos.length;a<b;a++)this.ABY.logos.appendChild(this.ABY.logos.logos[a])};Af.prototype.ABz=function(a){for(var b=[],c=0;c<a;c++)b.push(this.ABCA());return b};
 Af.prototype.ABCA=function(){var a=this.ABW.ABCDEFGHIW.createElement("div");a.setAttribute("class","letter");var b=this.ABW.ABCDEFGHIW.createElementNS("http://www.w3.org/2000/svg","svg");b.setAttribute("version","1.1");b.setAttribute("viewBox","0 0 320 16");b.setAttribute("preserveAspectRatio","xMinYMin meet");var c=this.ABW.ABCDEFGHIW.createElementNS("http://www.w3.org/2000/svg","path");return c.setAttribute("class","path"),c.setAttribute("d","M31,10l-1,1h-2l-3-3V6l3-3h2l1,1 M297,7h6 M300,4v6 M62,4l-1-1h-2l-2,2v4l2,2h3V8 M60,8h3 M74,11h4 M76,11V3M74,3h4 M47,3h-6v8h6 M45,7h-4 M33,11h4l2-2V5l-2-2h-4 M34,11V3 M119,9l-6-6v8 M119,11V3 M127,4l-1-1h-4l-1,1v6l1,1h4l1-1V4zM153,10l1,1h4l1-1V9l-6-4V4l1-1h4l1,1 M65,11V3 M65,7h6 M71,11V3 M17,11h4l2-2l-2-2l2-2l-2-2h-4 M18,3v8 M18,7h3 M15,11V6l-3-3L9,6v5 M9,8h6 M145,7h5l1-1V4l-1-1h-5v8 M151,11l-4-4 M164,11V3 M161,3h6 M169,3v7l1,1h4l1-1V3 M185,3v7l1,1l2-2l2,2l1-1V3 M188,7v2M111,11V3l-3,3l-3-3v8 M108,7V6 M89,11V3 M89,9l6-6 M91,7l4,4 M316,10v1 M97,3v8h6 M129,8h4l2-2V5l-2-2h-4v8 M199,11v-1l-6-6V3M193,11v-1l6-6V3 M308,11v-1 M308,7V6 M55,3h-6v8 M49,7h5 M81,9v1l1,1h2l1-1V3 M83,3h4 M143,9V5l-2-2h-2l-2,2v4l2,2h2L143,9zM143,12l-2-1l-1-2 M177,3v1l3,7l3-7V3 M201,3l3,3l3-3 M204,11V6 M215,11h-6v-1l6-6V3h-6 M223,4l-2-2h-2l-2,2v5l2,2h2l2-2V4z M220,5v3 M228,11V2l-2,2 M239,11h-6l6-6V3l-1-1h-3l-2,2 M241,10l1,1h3l2-2V8l-2-2h-1l3-3V2h-5 M254,11V2h-1l-4,4v2h6 M257,11h4l2-2V7l-2-2h-4V2h6 M267,2l-2,2v5l2,2h2l2-2V8l-2-2h-2l-2,2 M275,11V7l4-4V2h-6 M283,6l-2,2v1l2,2h2l2-2V8l-2-2l1-1V3l-1-1h-2l-1,1v2L283,6zM283,6h2 M293,11l2-2V3l-1-1h-3l-2,2v2l1,1h2l3-3"),
 b.appendChild(c),a.appendChild(b),a};
-Af.prototype.ABCB=function(){var a=this.ABW.ABCDEFGHIW.createElement("a");a.setAttribute("class","logos");var b=this.ABW.ABCDEFGHIW.createElementNS("http://www.w3.org/2000/svg","svg");b.setAttribute("version","1.1");b.setAttribute("viewBox","0 0 240 80");b.setAttribute("preserveAspectRatio","xMinYMin meet");var c=this.ABW.ABCDEFGHIW.createElementNS("http://www.w3.org/2000/svg","path");return c.setAttribute("class","shape"),c.setAttribute("d","M119.8,27.5h1.4v-1.4h-1.4V27.5z M119.8,23.8h1.4v-1.4h-1.4V23.8z M119.8,25.7h1.4v-1.4h-1.4V25.7z M125.3,55.1h1.4v-1.4h-1.4V55.1z M121.6,57h1.4v-1.4h-1.4V57z M121.6,55.1h1.4v-1.4h-1.4V55.1z M119.8,55.1h1.4v-1.4h-1.4V55.1z M118,25.7h1.4v-1.4H118V25.7z M118,23.8h1.4v-1.4H118V23.8z M118,27.5h1.4v-1.4H118V27.5z M119.8,57h1.4v-1.4h-1.4V57z M121.6,53.3h1.4v-1.4h-1.4V53.3z M119.8,58.8h1.4v-1.4h-1.4V58.8z M123.5,51.4h1.4V50h-1.4V51.4z M118,55.1h1.4v-1.4H118V55.1z M123.5,27.5h1.4v-1.4h-1.4V27.5z M123.5,31.2h1.4v-1.4h-1.4V31.2z M123.5,29.4h1.4V28h-1.4V29.4z M125.3,57h1.4v-1.4h-1.4V57z M123.5,25.7h1.4v-1.4h-1.4V25.7z M123.5,57h1.4v-1.4h-1.4V57z M121.6,25.7h1.4v-1.4h-1.4V25.7z M121.6,27.5h1.4v-1.4h-1.4V27.5z M121.6,23.8h1.4v-1.4h-1.4V23.8zM121.6,29.4h1.4V28h-1.4V29.4z M123.5,53.3h1.4v-1.4h-1.4V53.3z M123.5,55.1h1.4v-1.4h-1.4V55.1z M121.6,58.8h1.4v-1.4h-1.4V58.8zM117.5,26.1h-1.4v1.4h1.4V26.1z M117.5,24.2h-1.4v1.4h1.4V24.2z M117.5,53.7h-1.4v1.4h1.4V53.7z M117.5,22.4h-1.4v1.4h1.4V22.4zM104.1,58.8h5.8V22.4h-5.8V58.8z M113.2,19.4h-1.4v1.4h1.4V19.4z M132.2,31.6h-1.4V33h1.4V31.6z M130.8,40.4h1.4V39h-1.4V40.4zM132.2,37.2h-1.4v1.4h1.4V37.2z M132.2,35.3h-1.4v1.4h1.4V35.3z M112.4,58.8h1.4v-1.4h-1.4V58.8z M132.2,29.8h-1.4v1.4h1.4V29.8zM132.2,33.5h-1.4v1.4h1.4V33.5z M112.4,57h1.4v-1.4h-1.4V57z M114.3,23.8h1.4v-1.4h-1.4V23.8z M117.5,55.5h-1.4V57h1.4V55.5zM114.3,25.7h1.4v-1.4h-1.4V25.7z M116.3,60.5h1.4V59h-1.4V60.5z M118,58.8h1.4v-1.4H118V58.8z M114.3,27.5h1.4v-1.4h-1.4V27.5zM118,57h1.4v-1.4H118V57z M114.3,55.1h1.4v-1.4h-1.4V55.1z M112.4,27.5h1.4v-1.4h-1.4V27.5z M112.4,55.1h1.4v-1.4h-1.4V55.1zM112.4,25.7h1.4v-1.4h-1.4V25.7z M114.3,57h1.4v-1.4h-1.4V57z M114.3,58.8h1.4v-1.4h-1.4V58.8z M125.3,53.3h1.4v-1.4h-1.4V53.3zM130.8,45.9h1.4v-1.4h-1.4V45.9z M130.9,44h1.4v-1.4h-1.4V44z M132.7,44.1h1.4v-1.4h-1.4V44.1z M130.9,42.2h1.4v-1.4h-1.4V42.2zM132.7,47.8h1.4v-1.4h-1.4V47.8z M132.7,45.9h1.4v-1.4h-1.4V45.9z M132.7,49.6h1.4v-1.4h-1.4V49.6z M131.9,26.5h-1.4v1.4h1.4V26.5zM130.8,47.7h1.4v-1.4h-1.4V47.7z M129,33h1.4v-1.4H129V33z M129,31.2h1.4v-1.4H129V31.2z M130.8,49.6h1.4v-1.4h-1.4V49.6zM130.8,51.4h1.4V50h-1.4V51.4z M132.7,34.9h1.4v-1.4h-1.4V34.9z M134.5,42.2h1.4v-1.4h-1.4V42.2z M134.5,45.9h1.4v-1.4h-1.4V45.9zM134.5,40.4h1.4V39h-1.4V40.4z M134.5,44.1h1.4v-1.4h-1.4V44.1z M134.5,38.6h1.4v-1.4h-1.4V38.6z M134.5,36.7h1.4v-1.4h-1.4V36.7zM132.7,33h1.4v-1.4h-1.4V33z M132.7,40.4h1.4V39h-1.4V40.4z M132.7,38.6h1.4v-1.4h-1.4V38.6z M129,34.9h1.4v-1.4H129V34.9zM132.7,42.2h1.4v-1.4h-1.4V42.2z M132.7,36.7h1.4v-1.4h-1.4V36.7z M129,49.6h1.4v-1.4H129V49.6z M127.2,33h1.4v-1.4h-1.4V33zM127.2,51.4h1.4V50h-1.4V51.4z M127.2,47.8h1.4v-1.4h-1.4V47.8z M127.2,49.6h1.4v-1.4h-1.4V49.6z M127.2,34.9h1.4v-1.4h-1.4V34.9zM127.2,43.1h1.4v-1.4h-1.4V43.1z M127.2,53.3h1.4v-1.4h-1.4V53.3z M125.3,33h1.4v-1.4h-1.4V33z M125.3,49.6h1.4v-1.4h-1.4V49.6zM125.3,25.7h1.4v-1.4h-1.4V25.7z M125.3,31.2h1.4v-1.4h-1.4V31.2z M125.3,29.4h1.4V28h-1.4V29.4z M125.3,27.5h1.4v-1.4h-1.4V27.5zM127.2,31.2h1.4v-1.4h-1.4V31.2z M129,45.9h1.4v-1.4H129V45.9z M125.3,51.4h1.4V50h-1.4V51.4z M129,44.1h1.4v-1.4H129V44.1zM129,47.8h1.4v-1.4H129V47.8z M129,40.4h1.4V39H129V40.4z M129,38.6h1.4v-1.4H129V38.6z M129,56.4h1.4V55H129V56.4z M127.2,27.5h1.4v-1.4h-1.4V27.5z M127.2,29.4h1.4V28h-1.4V29.4z M129,36.7h1.4v-1.4H129V36.7z M129,53.3h1.4v-1.4H129V53.3z M129,51.4h1.4V50H129V51.4z M204.6,47.9c-3,1.7-6.5,1.6-9.2,0c-2.8-1.6-4.6-4.6-4.6-8c0-3.4,1.8-6.4,4.6-8c3-1.7,6.5-1.5,9.2,0c4.5,2.6,10.2,2.8,14.9,0l-2.9-4.9c-3,1.7-6.5,1.6-9.2,0c-4.5-2.6-10.2-2.8-14.9,0c-4.5,2.6-7.5,7.4-7.5,12.9c0,5.6,3,10.3,7.5,12.9c4.5,2.6,10.2,2.8,14.9,0c4.5-2.6,7.5-7.4,7.5-12.9l-5.7-0.1C209.2,43.4,207.4,46.4,204.6,47.9z"),b.appendChild(c),
-a.appendChild(b),a};Af.prototype.ABCC=function(){this.ABh="ERROR.";this.ABo="WEBGL IS NOT SUPPORTED";this.ABq="BY YOUR BROWSER"};
-Af.prototype.ABCD=function(){switch(this.ABd){case 0:this.ABo="VERSION 0.2";this.ABq="WORK IN PROGRESS";break;case 1:this.ABo="HEADPHONES OR SPEAKERS";this.ABq="STRONGLY RECCOMENDED";break;case 2:this.ABo="BEST EXPERIENCE ON CHROME,",this.ABq="FIREFOX AND EDGE"}this.ABd++;this.ABd=3===this.ABd?0:this.ABd};
+Af.prototype.ABCB=function(){var a=this.ABW.ABCDEFGHIW.createElement("a");a.setAttribute("class","logos");var b=this.ABW.ABCDEFGHIW.createElementNS("http://www.w3.org/2000/svg","svg");b.setAttribute("version","1.1");b.setAttribute("viewBox","0 0 240 80");b.setAttribute("preserveAspectRatio","xMinYMin meet");var c=this.ABW.ABCDEFGHIW.createElementNS("http://www.w3.org/2000/svg","path");return c.setAttribute("class","shape"),c.setAttribute("d","M121.6,23.8h1.4v-1.4h-1.4V23.8z M121.6,27.5h1.4v-1.4h-1.4V27.5z M121.6,25.7h1.4v-1.4h-1.4V25.7z M123.5,55.1h1.4v-1.4h-1.4V55.1z M123.5,57h1.4v-1.4h-1.4V57z M123.5,31.2h1.4v-1.4h-1.4V31.2z M123.5,51.4h1.4V50h-1.4V51.4z M123.5,53.3h1.4v-1.4h-1.4V53.3z M121.6,53.3h1.4v-1.4h-1.4V53.3z M119.8,23.8h1.4v-1.4h-1.4V23.8z M121.6,29.4h1.4V28h-1.4V29.4z M119.8,25.7h1.4v-1.4h-1.4V25.7z M121.6,58.8h1.4v-1.4h-1.4V58.8z M123.5,29.4h1.4V28h-1.4V29.4z M119.8,27.5h1.4v-1.4h-1.4V27.5z M121.6,57h1.4v-1.4h-1.4V57z M121.6,55.1h1.4v-1.4h-1.4V55.1z M125.3,25.7h1.4v-1.4h-1.4V25.7z M125.3,27.5h1.4v-1.4h-1.4V27.5z M123.5,27.5h1.4v-1.4h-1.4V27.5z M125.3,29.4h1.4V28h-1.4V29.4z M127.2,51.4h1.4V50h-1.4V51.4z M125.3,31.2h1.4v-1.4h-1.4V31.2z M127.2,47.8h1.4v-1.4h-1.4V47.8z M127.2,49.6h1.4v-1.4h-1.4V49.6z M127.2,53.3h1.4v-1.4h-1.4V53.3z M125.3,55.1h1.4v-1.4h-1.4V55.1z M125.3,57h1.4v-1.4h-1.4V57z M125.3,33h1.4v-1.4h-1.4V33z M123.5,25.7h1.4v-1.4h-1.4V25.7z M125.3,49.6h1.4v-1.4h-1.4V49.6z M125.3,51.4h1.4V50h-1.4V51.4zM127.2,43.1h1.4v-1.4h-1.4V43.1z M125.3,53.3h1.4v-1.4h-1.4V53.3z M104.1,58.8h5.8V22.4h-5.8V58.8z M112.4,58.8h1.4v-1.4h-1.4V58.8z M113.2,19.4h-1.4v1.4h1.4V19.4z M117.5,53.7h-1.4v1.4h1.4V53.7z M112.4,57h1.4v-1.4h-1.4V57z M117.5,26.1h-1.4v1.4h1.4V26.1zM112.4,27.5h1.4v-1.4h-1.4V27.5z M112.4,25.7h1.4v-1.4h-1.4V25.7z M112.4,55.1h1.4v-1.4h-1.4V55.1z M132.2,35.3h-1.4v1.4h1.4V35.3zM132.2,33.5h-1.4v1.4h1.4V33.5z M132.2,37.2h-1.4v1.4h1.4V37.2z M117.5,22.4h-1.4v1.4h1.4V22.4z M117.5,24.2h-1.4v1.4h1.4V24.2zM132.2,29.8h-1.4v1.4h1.4V29.8z M132.2,31.6h-1.4V33h1.4V31.6z M118,27.5h1.4v-1.4H118V27.5z M118,55.1h1.4v-1.4H118V55.1zM118,25.7h1.4v-1.4H118V25.7z M118,58.8h1.4v-1.4H118V58.8z M118,57h1.4v-1.4H118V57z M119.8,55.1h1.4v-1.4h-1.4V55.1z M119.8,57h1.4v-1.4h-1.4V57z M119.8,58.8h1.4v-1.4h-1.4V58.8z M114.3,58.8h1.4v-1.4h-1.4V58.8z M118,23.8h1.4v-1.4H118V23.8z M114.3,55.1h1.4v-1.4h-1.4V55.1z M114.3,57h1.4v-1.4h-1.4V57z M116.3,60.5h1.4V59h-1.4V60.5z M114.3,27.5h1.4v-1.4h-1.4V27.5z M114.3,25.7h1.4v-1.4h-1.4V25.7z M117.5,55.5h-1.4V57h1.4V55.5z M114.3,23.8h1.4v-1.4h-1.4V23.8z M130.8,40.4h1.4V39h-1.4V40.4z M132.7,47.8h1.4v-1.4h-1.4V47.8z M132.7,44.1h1.4v-1.4h-1.4V44.1z M132.7,45.9h1.4v-1.4h-1.4V45.9z M132.7,42.2h1.4v-1.4h-1.4V42.2z M132.7,40.4h1.4V39h-1.4V40.4z M130.9,42.2h1.4v-1.4h-1.4V42.2z M130.9,44h1.4v-1.4h-1.4V44z M130.8,45.9h1.4v-1.4h-1.4V45.9z M132.7,38.6h1.4v-1.4h-1.4V38.6z M132.7,49.6h1.4v-1.4h-1.4V49.6z M134.5,44.1h1.4v-1.4h-1.4V44.1z M134.5,38.6h1.4v-1.4h-1.4V38.6z M134.5,42.2h1.4v-1.4h-1.4V42.2z M134.5,40.4h1.4V39h-1.4V40.4z M134.5,36.7h1.4v-1.4h-1.4V36.7z M127.2,34.9h1.4v-1.4h-1.4V34.9z M134.5,45.9h1.4v-1.4h-1.4V45.9z M130.8,47.7h1.4v-1.4h-1.4V47.7z M132.7,33h1.4v-1.4h-1.4V33z M132.7,34.9h1.4v-1.4h-1.4V34.9z M132.7,36.7h1.4v-1.4h-1.4V36.7z M127.2,27.5h1.4v-1.4h-1.4V27.5z M129,51.4h1.4V50H129V51.4z M129,53.3h1.4v-1.4H129V53.3z M129,45.9h1.4v-1.4H129V45.9z M129,47.8h1.4v-1.4H129V47.8z M129,49.6h1.4v-1.4H129V49.6z M129,56.4h1.4V55H129V56.4z M127.2,33h1.4v-1.4h-1.4V33zM127.2,31.2h1.4v-1.4h-1.4V31.2z M127.2,29.4h1.4V28h-1.4V29.4z M129,31.2h1.4v-1.4H129V31.2z M129,33h1.4v-1.4H129V33zM130.8,49.6h1.4v-1.4h-1.4V49.6z M130.8,51.4h1.4V50h-1.4V51.4z M131.9,26.5h-1.4v1.4h1.4V26.5z M129,36.7h1.4v-1.4H129V36.7zM129,40.4h1.4V39H129V40.4z M129,38.6h1.4v-1.4H129V38.6z M129,44.1h1.4v-1.4H129V44.1z M129,34.9h1.4v-1.4H129V34.9z M210.3,22.4h-1.4v1.4h1.4V22.4z M212.2,22.4h-1.4v1.4h1.4V22.4z M214,22.4h-1.4v1.4h1.4V22.4z M210.3,24.3l-1.4,0v1.4h1.4V24.3z M212.2,24.3l-1.4,0v1.4h1.4V24.3z M214,24.3l-1.4,0v1.4h1.4V24.3z M214.4,22.4v1.4h1.4v-1.4H214.4z M208.5,26.1H207v1.4h1.4V26.1z M210.3,26.1h-1.4v1.4h1.4V26.1z M212.2,26.1h-1.4v1.4h1.4V26.1z M206.6,28h-1.4v1.4h1.4V28z M208.5,28H207v1.4h1.4V28z M210.3,28h-1.4v1.4h1.4V28z M206.6,29.8h-1.4v1.4h1.4V29.8z M208.5,29.8H207v1.4h1.4V29.8z M210.3,29.8h-1.4v1.4h1.4V29.8z M204.8,31.6h-1.4v1.4h1.4V31.6zM206.6,31.6h-1.4v1.4h1.4V31.6z M208.5,31.6H207v1.4h1.4V31.6z M204.8,33.5h-1.4v1.4h1.4V33.5z M206.6,33.5h-1.4v1.4h1.4V33.5zM208.5,33.5H207v1.4h1.4V33.5z M204.8,35.3h-1.4v1.4h1.4V35.3z M206.6,35.3h-1.4v1.4h1.4V35.3z M206.6,37.2h-1.4v1.4h1.4V37.2zM190.1,58.8h1.4v-1.4l-1.4,0V58.8z M188.3,58.8h1.4v-1.4l-1.4,0V58.8z M186.4,58.8h1.4v-1.4l-1.4,0V58.8z M190.1,57h1.4v-1.4h-1.4V57z M188.3,57h1.4v-1.4h-1.4V57z M186.4,57h1.4v-1.4h-1.4V57z M184.6,58.8h1.4v-1.4l-1.4,0V58.8z M192,55.1h1.4v-1.4H192V55.1zM190.1,55.1h1.4v-1.4h-1.4V55.1z M188.3,55.1h1.4v-1.4h-1.4V55.1z M193.8,53.3h1.4v-1.4h-1.4V53.3z M192,53.3h1.4v-1.4H192V53.3zM190.1,53.3h1.4v-1.4h-1.4V53.3z M193.8,51.5h1.4V50h-1.4V51.5z M192,51.5h1.4V50H192V51.5z M190.1,51.5h1.4V50h-1.4V51.5zM195.6,49.6h1.4v-1.4h-1.4V49.6z M193.8,49.6h1.4v-1.4h-1.4V49.6z M192,49.6h1.4v-1.4H192V49.6z M195.6,47.8h1.4v-1.4h-1.4V47.8zM193.8,47.8h1.4v-1.4h-1.4V47.8z M192,47.8h1.4v-1.4H192V47.8z M195.6,45.9h1.4v-1.4h-1.4V45.9z M193.8,45.9h1.4v-1.4h-1.4V45.9zM193.8,44.1l1.4,0v-1.4h-1.4V44.1z M185.2,22.4l23.5,36.4h6.7L192,22.4H185.2z"),b.appendChild(c),
+a.appendChild(b),a};Af.prototype.ABCC=function(){this.ABh="ERROR.";this.ABo="WEBGL IS NOT SUPPORTED";this.ABq="BY YOUR BROWSER"};Af.prototype.ABCD=function(){switch(this.ABd){case 0:this.ABo="HEADPHONES OR SPEAKERS";this.ABq="STRONGLY RECCOMENDED";break;case 1:this.ABo="BEST EXPERIENCE ON CHROME,",this.ABq="FIREFOX AND EDGE"}this.ABd++;this.ABd=2===this.ABd?0:this.ABd};
 Af.prototype.ABCE=function(){if(this.ABCG===this.ABV)return void this.ABr();switch(this.ABc){case !0:this.ABj="DESIGN + CODE";this.ABm="STANDARDABWEICHUNG";this.ABY.contact.setAttribute("href","http://www.standardabweichung.de");this.ABW.ABCDEFGHIr();break;case !1:this.ABj="MUSIC + SOUNDDESIGN",this.ABm="KARMA",this.ABY.contact.setAttribute("href","http://www.karma-audio.com/")}this.ABCD();this.ABc=
-!this.ABc};Af.prototype.ABCF=function(){this.ABc=!0;this.ABq=this.ABo=this.ABm=this.ABj=this.ABh=null;this.ABY.logos.logos[0].classList.toggle("ddd",!1);this.ABY.logos.logos[1].classList.toggle("sigma",!1)};
-Af.prototype.ABCG=function(a){if(a!=this.ABZ)switch(this.ABZ=a,a){case this.ABT:this.ABf=!0;setTimeout(function(){this.ABX?(this.ABa&&clearInterval(this.ABa),this.ABh="PIXELS."):this.ABCC()}.bind(this),125);break;case this.ABU:this.ABf=!0;this.ABX?(this.ABa&&clearInterval(this.ABa),this.ABW.ABCDEFGHIr(),this.ABh="PIXELS.",this.ABY.logos.logos[0].classList.toggle("ddd",!0),this.ABY.logos.logos[1].classList.toggle("sigma",!0),
+!this.ABc};Af.prototype.ABCF=function(){this.ABc=!0;this.ABq=this.ABo=this.ABm=this.ABj=this.ABh=null;this.ABY.logos.logos[0].classList.toggle("ddd",!1);this.ABY.logos.logos[1].classList.toggle("devx",!1)};
+Af.prototype.ABCG=function(a){if(a!=this.ABZ)switch(this.ABZ=a,a){case this.ABT:this.ABf=!0;setTimeout(function(){this.ABX?(this.ABa&&clearInterval(this.ABa),this.ABh="PIXELS."):this.ABCC()}.bind(this),125);break;case this.ABU:this.ABf=!0;this.ABX?(this.ABa&&clearInterval(this.ABa),this.ABW.ABCDEFGHIr(),this.ABh="PIXELS.",this.ABY.logos.logos[0].classList.toggle("ddd",!0),this.ABY.logos.logos[1].classList.toggle("devx",!0),
 this.ABCE(),this.ABa=setInterval(this.ABCE.bind(this),4E3),setTimeout(function(){this.ABCH()}.bind(this),2E3)):this.ABCC();break;case this.ABV:this.ABf=!1,this.ABa&&clearInterval(this.ABa),this.ABCF(),this.ABCI(),this.ABW.ABCDEFGHIJG("audio_play")}};
 Af.prototype.ABCH=function(){this.ABY.title.addEventListener("mouseover",this.ABCL);this.ABY.title.addEventListener("mouseout",this.ABCM);this.ABY.title.addEventListener("click",this.ABCN)};
 Af.prototype.ABCI=function(){this.ABY.title.removeEventListener("mouseover",this.ABCL);this.ABY.title.removeEventListener("mouseout",this.ABCM);this.ABY.title.removeEventListener("click",this.ABCN)};
